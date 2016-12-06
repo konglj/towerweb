@@ -1,0 +1,558 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tower.tower.mapper.TowerMapper">
+
+	<sql id="admin_power">
+		<if test="sysUser.province!=null and  sysUser.province!=0">
+			and t.Tower_province =#{sysUser.province}
+		</if>
+		<if test="sysUser.citys!=null  and sysUser.citys.size()>0">
+			and t.Tower_city in(
+			<foreach collection="sysUser.citys" item="c" separator=",">
+				#{c.cityid}
+			</foreach>
+			)
+		</if>
+
+		<if test="sysUser.districts!=null  and sysUser.districts.size()>0">
+			and t.Tower_district in(
+			<foreach collection="sysUser.districts" item="dis" separator=",">
+				#{dis.disid}
+			</foreach>
+			)
+		</if>
+		<if test="sysUser.areas!=null and sysUser.areas.size()>0 ">
+			and t.Tower_area in(
+			<foreach collection="sysUser.areas" item="a" separator=",">
+				#{a.id}
+			</foreach>
+			)
+		</if>
+	</sql>
+
+	<sql id="tower_paramers">
+		<if test="towername != null and towername != ''">
+			and ( t.Tower_name like '%${towername}%' or
+			t.Tower_address like
+			'%${towername}%' or a.area_name like
+			'%${towername}%' or c.City_name like '%${towername}%' )
+		</if>
+		<if test="province != null and province != 0">
+			and t.tower_province = #{province}
+		</if>
+		<if test="city != null and city != 0">
+			and t.tower_city = #{city}
+		</if>
+		<if test="district != null and district != 0">
+			and t.Tower_district = #{district}
+		</if>
+		<if test="area != null and area !=0">
+			and t.Tower_area = #{area}
+		</if>
+
+		<if test="towerstyle != null and towerstyle !=0">
+			and t.Tower_style = #{towerstyle}
+		</if>
+		<if test="towertype != null and towertype != 0">
+			and t.Tower_type = #{towertype}
+		</if>
+		<if test="towerstate != null and towerstate !=-1">
+			and t.Tower_state = #{towerstate}
+		</if>
+		<if test="fromdate != null and fromdate != ''">
+			and t.Tower_visible_time >= #{fromdate}
+		</if>
+		<if test="todate != null and todate != ''">
+			and t.Tower_visible_time <![CDATA[ <= ]]>
+			#{todate}
+		</if>
+		<if test="towercreatetype!=null and towercreatetype!=0">
+			and t.Tower_create_type=#{towercreatetype}
+		</if>
+
+		<if test="towerlevel!=null and towerlevel!=0">
+			and t.Tower_level=#{towerlevel}
+		</if>
+		<if test="towersource!=null and towersource!=-1">
+			and t.Tower_source=#{towersource}
+		</if>
+	</sql>
+	<!-- 查询条件 -->
+	<sql id="select_condition">
+
+	</sql>
+	<select id="getTowers" parameterType="com.tower.tower.bean.TowersPage"
+		resultType="com.tower.tower.bean.Tower">
+		select * from (select *,ROW_NUMBER() OVER
+		(ORDER BY
+		<if test="towervisible!=null and towervisible==1">
+			towervisibletime desc
+		</if>
+		<if test="towervisible!=null and towervisible!=1">
+			towercreatetime desc
+		</if>
+		)
+		as rank from
+		(
+
+		select
+		t.ID as id,
+		(case when len(t.Tower_name)>15
+		then
+		left
+		(t.Tower_name,15)+'...'
+		else t.Tower_name
+		end )
+		as towername,
+		c.City_name as cityname,
+		d.Dis_name as districtname,
+		a.area_name as
+		areaname,
+		(case
+		when
+		len(t.Tower_address)>10 then left
+		(t.Tower_address,10)+'...'
+		else
+		t.Tower_address
+		end ) as toweraddress,
+
+		l.levelname as towerlevelname,
+		t.Tower_fee as towerfee,
+		t.Tower_rent_fee as
+		towerrentfee,
+		CONVERT(varchar,
+		t.Tower_add_date, 120
+		) as towercreatetime,
+		CONVERT(varchar,
+		t.Tower_visible_time, 120 ) as
+		towervisibletime,
+		ct.name as
+		towercreatetypename,
+		<if test="towervisible!=null and towervisible==1">
+			(select top(1)tower_state from tower_order_detail
+			o where
+			o.Tower_id=t.ID
+			order by o.Tower_add_time desc) as orderstate,
+		</if>
+		t.Tower_state as towerstate
+
+		from tower_tower_info t
+		left join Tower_city
+		c on c.City_id=t.Tower_city
+		left join Tower_district d on
+		d.Dis_id=t.Tower_district
+		left join
+		tower_area a on a.ID =t.Tower_area
+		left join tower_create_type ct on
+		ct.id=t.Tower_create_type
+		left join
+		tower_tower_level l on
+		l.towerlevel=t.Tower_level and
+		t.Tower_province=l.province
+		where 1=1
+		and
+		t.Tower_visible =
+		#{towervisible}
+		and t.Tower_is_hb=0
+		<!-- admin -->
+		<include refid="admin_power" />
+		<!-- admin end -->
+		<!-- praramer -->
+		<include refid="tower_paramers"></include>
+		<!-- praramer end -->
+
+
+		) w1)as tm where tm.rank between
+		#{iDisplayStart}+1 and
+		#{iDisplayStart}+#{iDisplayLength}
+		;
+	</select>
+
+	<select id="getTowersCount" parameterType="com.tower.tower.bean.TowersPage"
+		resultType="int">
+		select count(1)
+		from tower_tower_info t
+		left join Tower_city c on
+		c.City_id=t.Tower_city
+		left join Tower_district d on
+		d.Dis_id=t.Tower_district
+		left join tower_area a on a.ID =t.Tower_area
+		where 1=1
+		and t.Tower_visible = #{towervisible}
+		and t.Tower_is_hb=0
+		<!-- admin -->
+		<include refid="admin_power" />
+		<!-- admin end -->
+		<!-- praramer -->
+		<include refid="tower_paramers"></include>
+		<!-- praramer end -->
+		;
+	</select>
+
+	<select id="getTowerInfoById" parameterType="int"
+		resultType="com.tower.tower.bean.Tower">
+		select
+		t.ID as id,
+		t.Tower_idefined as toweridefined,
+		t.Tower_name as towername,
+		t.Tower_who_yd as towerwhoyd,
+		t.Tower_who_dx
+		as towerwhodx,
+		t.Tower_who_lt as towerwholt,
+		t.Tower_level as
+		towerlevel,
+		t.Tower_address as toweraddress,
+		t.Tower_state as
+		towerstate,
+		case t.Tower_state
+		when 0 then '未抢单'
+		when 1 then '已抢单'
+		end as
+		towerstatename,
+		t.Tower_large as towerlarge,
+		t.Tower_fee as towerfee,
+		t.Tower_style as towerstyle,
+		st.name as towerstylename,
+		t.Tower_type as
+		towertype,
+		p.Tower_type_name as towertypename,
+		p.Tower_type_img as
+		towertypeimg,
+		t.Tower_img as towerimg,
+		t.Tower_id as towerid,
+		t.Tower_j
+		as towerj,
+		t.Tower_w as towerw,
+		t.Tower_first_j as towerfirstj,
+		t.Tower_first_w as towerfirstw,
+		t.Tower_second_j as towersecondj,
+		t.Tower_second_w as towersecondw,
+		t.Tower_manager as towermanager,
+		t.tower_create_type as towercreatetype,
+		ct.name as towercreatetypename,
+		t.Tower_manager_name as towermanagername,
+		CONVERT(varchar,
+		t.Tower_add_date, 120 ) as toweradddate,
+		CONVERT(varchar,
+		t.Tower_visible_time, 120 ) as towervisibletime,
+		t.Tower_visible as
+		towervisible,
+		t.Tower_info as towerinfo,
+		case
+		t.Tower_level
+		when 1 then
+		'一级站址'
+		when 2 then '二级站址'
+		when 3 then '三级站址'
+		when 4 then '四级站址'
+		end as
+		towerlevelname,
+		c.City_name as cityname,
+		d.Dis_name as districtname,
+		a.area_name as areaname,
+		c.City_name as
+		cityname,
+		t.Tower_area as
+		towerarea,
+		t.Tower_district as towerdistrict,
+		t.Tower_city as towercity,
+		t.Tower_province as towerprovince,
+		t.Tower_rent_fee as
+		towerrentfee,
+		s.storename as towerstorename,
+		s.storeid as towerstore
+		from
+		tower_tower_info t
+		left join Tower_city c on
+		c.City_id=t.Tower_city
+		left
+		join Tower_district d on
+		d.Dis_id=t.Tower_district
+		left join tower_area
+		a on a.ID =t.Tower_area
+		left join tower_tower_style st on
+		st.id=t.Tower_style
+		left join tower_tower_type p on p.ID=t.Tower_type
+		left join tower_tower_store s on s.storeid=t.Tower_store and t.Tower_province=s.province
+		left join tower_create_type ct on ct.id=t.Tower_create_type and t.Tower_province=ct.province
+		where 1=1
+		and
+		t.ID=#{towerid}
+
+	</select>
+
+
+
+
+
+
+	<insert id="insertTower" parameterType="com.tower.tower.bean.Tower">
+		insert tower_tower_info
+		(Tower_id, Tower_idefined, Tower_name, Tower_who_yd,
+		Tower_who_dx,Tower_who_lt,Tower_province,Tower_city,Tower_district,
+		Tower_area, Tower_address, Tower_level,
+		Tower_fee,
+		Tower_state,Tower_style,
+		Tower_type, Tower_large, Tower_j,Tower_w,
+		Tower_manager,Tower_manager_name,
+		Tower_manager_chat,Tower_info,Tower_remark, Tower_visible,
+		Tower_is_hb,
+		Tower_add_user, Tower_add_date, Tower_order_id,
+		Tower_img,Tower_rent_fee,Tower_store,
+		Tower_first_j,Tower_first_w,Tower_second_j,Tower_second_w,Tower_create_type)
+
+		values
+		(#{towerid}, #{toweridefined}, #{towername},
+		#{towerwhoyd},#{towerwhodx},#{towerwholt},#{towerprovince},#{towercity},#{towerdistrict},
+		#{towerarea},
+		#{toweraddress}, #{towerlevel}, #{towerfee},
+		#{towerstate},#{towerstyle},
+		#{towertype}, #{towerlarge}, #{towerj},
+		#{towerw},
+		#{towermanager},#{towermanagername},#{towermanagerchat},
+		#{towerinfo},#{towerremark}, #{towervisible},
+		#{towerhb},
+		#{toweradduser}, GETDATE(), #{towerorderid},
+		#{towerimg},#{towerrentfee},#{towerstore},
+		#{towerfirstj},#{towerfirstw},#{towersecondj},#{towersecondw},#{towercreatetype})
+		;
+	</insert>
+
+
+
+	<update id="updateTower" parameterType="com.tower.tower.bean.Tower">
+		update tower_tower_info
+		set
+		Tower_name=#{towername},
+		Tower_address=#{toweraddress},
+		Tower_who_yd=#{towerwhoyd},
+		Tower_who_dx=#{towerwhodx},
+		Tower_who_lt=#{towerwholt},
+		Tower_fee=#{towerfee},
+		Tower_rent_fee =#{towerrentfee},
+		Tower_manager=#{towermanager},
+		Tower_manager_name=#{towermanagername},
+		Tower_manager_chat=#{towermanagerchat},
+		Tower_style=#{towerstyle},
+		Tower_type=#{towertype},
+		Tower_large=#{towerlarge},
+
+		Tower_city=#{towercity},
+		Tower_district=#{towerdistrict},
+		Tower_area=#{towerarea},
+		Tower_level=#{towerlevel},
+		Tower_info=#{towerinfo},
+		Tower_remark=#{towerremark},
+		Tower_j=#{towerj},
+		Tower_w=#{towerw},
+		Tower_first_j = #{towerfirstj},
+		Tower_first_w =#{towerfirstw},
+		Tower_second_j =#{towersecondj},
+		Tower_second_w=#{towersecondw},
+		Tower_idefined=#{toweridefined},
+		Tower_store =#{towerstore},
+		Tower_create_type =#{towercreatetype}
+		where
+		ID=#{id}
+		;
+
+	</update>
+
+	<delete id="delTower" parameterType="java.util.Arrays">
+		delete from tower_tower_info
+		where 1=1
+		and
+		ID in(
+		<foreach collection="ids" item="id" separator=",">
+			#{id}
+		</foreach>
+		)
+	</delete>
+
+	<update id="updateTowerVisible" parameterType="map">
+		update tower_tower_info
+		set
+		<if test="towervisible==0">
+			Tower_visible_time=NULL,
+		</if>
+		<if test="towervisible==1">
+			Tower_visible_time=GETDATE(),
+		</if>
+		Tower_visible=#{towervisible}
+		where
+		1=1
+		and ID in(
+		<foreach collection="ids" item="id" separator=",">
+			#{id}
+		</foreach>
+		)
+		<if test="towervisible==0">
+			and Tower_state=0
+		</if>
+
+
+
+	</update>
+
+
+	<select id="getTowertype" resultType="com.tower.tower.bean.TowerType">
+		select
+		ID as id,
+		Tower_type_name as towertypename,
+		Tower_type_img as towertypeimg
+		from
+		tower_tower_type
+		;
+	</select>
+
+
+	<update id="updateTowerLevel" parameterType="map">
+		update
+		tower_tower_info
+		set tower_level=#{towerlevel}
+		where ID=#{towerid}
+		;
+	</update>
+
+
+
+
+	<update id="updateTowerSource" parameterType="map">
+		update
+		tower_tower_info
+		set tower_source=#{source}
+		where ID=#{towerid}
+		;
+	</update>
+
+
+	<select id="getUnOrderTower" resultType="map">
+		select
+		t.ID as towerid,
+		t.Tower_visible_time as towervisibletime,
+		(select a.Tower_abandon_time
+		from (select
+		m.*,RANK() over (PARTITION by
+		m.Tower_id order by
+		m.tower_add_time
+		desc)
+		as drank from tower_order_detail m where
+		m.Tower_id=t.ID) a where
+		drank=1) lastordertime
+		from
+		tower_tower_info t
+		where t.Tower_visible=1
+		and t.Tower_state=0
+		and t.Tower_level!=4
+
+	</select>
+
+
+	<select id="getTowerTowerCreateTypes" parameterType="int"
+		resultType="com.tower.tower.bean.TowerCreateType">
+		select
+		t.id as id,
+		t.name as name
+		from tower_create_type t
+		where 1=1
+		and t.province=#{province}
+		order by orderby asc
+		;
+	</select>
+
+
+	<select id="getTowerLevels" parameterType="int"
+		resultType="com.tower.tower.bean.TowerLevel">
+		select
+		l.towerlevel as towerlevel,
+		l.levelname as levelname
+		from tower_tower_level l
+		where 1=1
+		and l.province=#{province}
+		order by
+		towerlevel asc
+		;
+
+	</select>
+
+	<select id="getTowerStyles" parameterType="int"
+		resultType="com.tower.tower.bean.TowerStyle">
+		select top(1)
+		s.id as id,
+		s.img as img,
+		s.name as name
+		from
+		tower_tower_style s
+		where 1=1
+		order by s.id asc
+	</select>
+
+
+
+
+	<select id="getTowerTypes" parameterType="int"
+		resultType="com.tower.tower.bean.TowerType">
+		select
+		t.ID as id,
+		t.Tower_stype as towertype,
+		t.Tower_type_name as towertypename
+		from tower_tower_type t
+		where 1=1
+		and
+		t.Tower_stype=#{style}
+		order by sort asc
+	</select>
+
+	<select id="getTowerStores" parameterType="int"
+		resultType="com.tower.tower.bean.TowerStore">
+		select
+		storeid as storeid,
+		storename as storename
+		from
+		tower_tower_store
+		where 1=1
+		and province=#{province}
+		;
+	</select>
+
+
+	<select id="getareaorder" parameterType="map" resultType="map">
+		select
+		count(0) as count, max(orderno) as orderno
+		from tower_id_areaorder
+		where area = #{area}
+		and city = #{city};
+	</select>
+
+	<update id="updateareaorder" parameterType="map">
+		update
+		tower_id_areaorder
+		set orderno = orderno + 1
+		where area = #{area}
+		and
+		city = #{city};
+	</update>
+
+	<insert id="insertareaorder" parameterType="map">
+		insert
+		tower_id_areaorder
+		(area, city, orderno)
+		values
+		(#{area},#{city},1)
+		;
+	</insert>
+
+	<update id="updateTowerState" parameterType="map">
+		update tower_tower_info
+		set
+		<if test="towervisible!=null">
+			tower_visible=#{towervisible},
+		</if>
+		tower_state=#{towerstate}
+		where ID=#{towerid}
+		;
+
+	</update>
+
+</mapper>

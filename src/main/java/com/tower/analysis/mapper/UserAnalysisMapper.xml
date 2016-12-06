@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tower.analysis.mapper.UserAnalysisMapper">
+
+	<sql id="admin_power">
+		<if test="sysUser.citys!=null">
+			and u.User_city in(
+			<foreach collection="sysUser.citys" item="c" separator=",">
+				#{c.cityid}
+			</foreach>
+			)
+		</if>
+
+		<if test="sysUser.districts!=null">
+			and u.User_district in(
+			<foreach collection="sysUser.districts" item="dis" separator=",">
+				#{dis.disid}
+			</foreach>
+			)
+		</if>
+	</sql>
+
+
+	<sql id="sql_from_user">
+		from Tower_User_info u
+		LEFT JOIN Tower_city c on u.User_city = c.City_id
+		Left join Tower_district d on d.Dis_id=u.User_district
+		LEFT JOIN tower_user_order_info o on u.id = o.User_id
+		where 1=1
+	</sql>
+	
+	<sql id="user_paramers">
+	<if test="username != null and username != ''">
+			and u.User_name like '%${username}%'
+		</if>
+		<if test="usertele != null and usertele != ''">
+			and u.User_tele like '%${usertele}%'
+		</if>
+		<if test="usercity != null and usercity != ''">
+			and u.User_city = #{usercity}
+		</if>
+		<if test="userdistrict != null and userdistrict != ''">
+			and u.User_district = #{userdistrict}
+		</if>
+	</sql>
+
+
+	<select id="getUserAnalysis" parameterType="com.tower.analysis.bean.UserAnalysisPage"
+		resultType="com.tower.analysis.bean.UserAnalysis">
+		select * from (select *,ROW_NUMBER() OVER (ORDER BY addtime
+		desc) as rank from
+		(
+		SELECT u.User_name as username,
+		u.User_tele as usertele,
+		c.City_name as cityname,
+		d.Dis_name as districtname,
+		(select count(1)from user_favourite_tower f where f.User_id=u.id) as gzcount,
+		o.Order_count+o.pd_count as dqcount,
+		o.Succ_count as succcount,
+		o.Reject_count as rejectcount,
+		o.Cancel_count as cancelcount,
+		o.Time_count as timecount,
+		u.Add_time as addtime
+		<include refid="sql_from_user" />
+		<include refid="admin_power" />
+		<include refid="user_paramers" />
+		) w1)as tm where tm.rank between
+		#{iDisplayStart}+1 and
+		#{iDisplayStart}+#{iDisplayLength}
+		;
+	</select>
+
+	<select id="getUserAnalysisCount" parameterType="com.tower.analysis.bean.UserAnalysisPage"
+		resultType="int">
+		SELECT
+		count(1)
+		<include refid="sql_from_user" />
+		<include refid="admin_power" />
+		<include refid="user_paramers" />
+		;
+	</select>
+	
+	
+	<select id="getUserSourceAnalysis" parameterType="com.tower.analysis.bean.UserAnalysisPage" resultType="map">
+<if test="sysUser.arealevel==2">
+		select s.source,i.info,
+		(
+		select 
+		COUNT(1) 
+		from 
+		tower_user_info u 
+	    LEFT JOIN tower_city c on c.City_id = u.User_city
+	    LEFT JOIN tower_district d on d.Dis_id = u.User_district
+		where 1=1 
+		and 
+		u.User_source=i.infoid
+		<include refid="admin_power"></include>
+		)as count
+		from tower_user_source_info i
+		left join tower_user_source s on s.sourceid=i.sourceid
+
+		where 1=1
+		<!-- admin -->
+		<if test="sourceid!=null and sourceid!=0">
+			and s.sourceid=#{sourceid}
+		</if>
+		<if test="infoid!=null and infoid!=0">
+			and i.infoid=#{infoid}
+		</if>
+</if>
+
+<if test="sysUser.arealevel==3">
+		select s.source,i.info,
+		(
+		select 
+		COUNT(1) 
+		from 
+		tower_user_info u 
+	    LEFT JOIN tower_city c on c.City_id = u.User_city
+		where 1=1 
+		and 
+		u.User_source=i.infoid
+		<include refid="admin_power"></include>
+		)as count
+		from tower_user_source_info i
+		left join tower_user_source s on s.sourceid=i.sourceid
+
+		where 1=1
+		<!-- admin -->
+		<if test="sourceid!=null and sourceid!=0">
+			and s.sourceid=#{sourceid}
+		</if>
+		<if test="infoid!=null and infoid!=0">
+			and i.infoid=#{infoid}
+		</if>
+ </if>
+
+	</select>
+	
+
+</mapper>

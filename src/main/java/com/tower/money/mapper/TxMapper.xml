@@ -1,0 +1,393 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tower.money.mapper.TxMapper">
+
+	<sql id="admin_power">
+		<if test="sysUser.citys!=null  and sysUser.citys.size()>0">
+			and u.User_city in(
+			<foreach collection="sysUser.citys" item="c" separator=",">
+				#{c.cityid}
+			</foreach>
+			)
+		</if>
+
+		<if test="sysUser.districts!=null and sysUser.districts.size()>0">
+			and u.User_district in(
+			<foreach collection="sysUser.districts" item="dis" separator=",">
+				#{dis.disid}
+			</foreach>
+			)
+		</if>
+	</sql>
+	<sql id="admin_power_tower">
+	
+	<if test="sysUser.citys!=null and sysUser.citys.size()>0">
+			and ti.Tower_city in(
+			<foreach collection="sysUser.citys" item="tc" separator=",">
+				#{tc.cityid}
+			</foreach>
+			)
+		</if>
+
+
+		<if test="sysUser.districts!=null and sysUser.districts.size()>0">
+			and ti.tower_district in(
+			<foreach collection="sysUser.districts" item="tdis" separator=",">
+				#{tdis.disid}
+			</foreach>
+			)
+		</if>
+		
+		<if test="sysUser.areas!=null and sysUser.areas.size()>0">
+		
+			and ti.tower_area  in(
+			<foreach collection="sysUser.areas" item="ta" separator=",">
+				#{ta.id}
+			</foreach>
+			)
+		</if>
+		
+		
+	</sql>
+
+	<sql id="sql_parameter">
+		
+		
+		<if test="parameter.usercity!=null and parameter.usercity!=0 ">
+			and u.User_city=#{parameter.usercity}
+		</if>
+		<if test="parameter.userdistrict!=null and parameter.userdistrict!=0 ">
+			and u.User_district=#{parameter.userdistrict}
+		</if>
+		<if test="parameter.usertele!=null and parameter.usertele!='' ">
+			and u.User_tele=#{parameter.usertele}
+		</if>
+		<if test="parameter.username!=null and parameter.username!='' ">
+			and ( u.User_name like '%${parameter.username}%' or  u.User_tele like '%${parameter.username}%'  )
+		</if>
+	
+		<if test="parameter.userlevel!=null and parameter.userlevel!=0 ">
+			and u.user_level=#{parameter.userlevel}
+		</if>
+		<if test="parameter.usertype!=null and parameter.usertype!=0 ">
+			and u.User_type=#{parameter.usertype}
+		</if>
+		<if test="parameter.state!=null and parameter.state>=0 and parameter.state!=5">
+			and r.state=#{parameter.state}
+		</if>
+		<if test="apply!=-1">
+		   and s.apply=#{apply}
+		</if>
+		
+		<if test="parameter.state!=null and parameter.state==5">
+			and r.state in (5,6)
+		</if>
+		
+	</sql>
+	
+	
+	<sql id="sql_paramer_tower">
+	
+		<!-- admin end -->
+		  and (
+		   select count(1)
+		  from tower_user_tx_source ts
+		  left join tower_order_detail td on ts.Order_id=td.id
+		  left join tower_tower_info ti on ti.id=td.Tower_id
+		  left join tower_area ta on ta.ID=ti.Tower_area
+		  left join Tower_district tdi on tdi.Dis_id=ti.Tower_district
+		  left join Tower_city tc on tc.City_id=ti.Tower_city
+		   and  ts.Tx_id=r.id
+		   <if test="parameter.towername!=null and parameter.towername!=''">
+		   and (ti.Tower_name like '%${parameter.towername}%' or ti.Tower_id '%${parameter.towerno}')
+		   </if>
+		    <if test="parameter.towerno!=null and parameter.towerno!=''">
+		    and ti.Tower_id = #{parameter.towerno}
+		   </if>
+		   <include refid="admin_power_tower"/>
+		  	
+		  )>0
+	</sql>
+
+	<sql id="sql_tx_from">
+		from tower_user_tx_record r
+		left join tower_user_info u on  r.userid = u.id
+	    left join tower_user_type t on u.User_type = t.ID
+		left join tower_city c on c.City_id =u.User_city
+		left join Tower_district d on d.Dis_id=u.User_district
+		left join Tower_user_level l on l.userlevel=u.User_level and l.province=u.User_province
+		left join tower_user_tx_state s on s.txstate=r.state and s.province=u.User_province
+		where 1 = 1
+
+	</sql>
+
+
+	<select id="getTxs" parameterType="com.tower.money.bean.TxPage"
+		resultType="com.tower.money.bean.TxRecord">
+		select * from (select *,ROW_NUMBER() OVER (ORDER BY adddate desc) as
+		rank from(
+		select
+		r.ID as id,
+		u.User_name as username,
+		u.User_tele as usertele,
+		c.City_name as cityname,
+		d.Dis_name as districtname,
+		l.levelname as levelname,
+		t.Type_name as typename,
+		r.Fee as fee,
+		 CONVERT(varchar,
+		r.Add_date, 120 ) as adddate,
+	  
+		s.statename as statename,
+		s.deal as isdeal,
+		r.state,
+		u.Wx_id as wxid,
+		r.bank_back_id as bankbackid
+		<include refid="sql_tx_from"/>
+		<include refid="admin_power"/>
+		<include refid="sql_parameter"/>
+    	) w1)as tm where tm.rank between #{iDisplayStart}+1 and
+		#{iDisplayStart}+#{iDisplayLength}
+		;
+	</select>
+
+	<select id="getTxsCount" parameterType="com.tower.money.bean.TxPage"
+		resultType="int">
+		select count(1)
+		<include refid="sql_tx_from"/>
+		<include refid="admin_power"/>
+		<include refid="sql_parameter"/>
+		
+		;
+	</select>
+
+
+	<select id="getCheckTx" parameterType="int" resultType="com.tower.money.bean.TxRecord">
+		 select
+		u.id as userid,
+		u.User_name as username,
+		u.User_tele as usertele,
+		r.Tx_id as txid,
+		r.id as id,
+		r.state as state,
+		s.success as successstate,
+		s.error as errorstate,
+		r.fee as fee
+		from tower_user_tx_record r
+		left join tower_user_info u on  r.userid = u.id
+		left join Tower_user_tx_state s on s.txstate=r.state
+		where 1=1
+		and r.ID =#{txid};
+	</select>
+
+	<select id="getTx" parameterType="int"
+		resultType="com.tower.money.bean.TxRecord">
+	   select
+		u.User_name as username,
+		u.User_tele as usertele,
+		c.City_name as cityname,
+		d.Dis_name as districtname,
+		l.levelname as levelname,
+		t.Type_name as typename,
+		u.User_company as usercompany,
+		r.Tx_id as txid,
+		r.id as id,
+		f.Charge as charge,
+		f.Getting_now as gettingnow,
+		f.Get_now as getnow,
+		f.All_geting as allgeting,
+		r.Bank_account as bankaccount,
+		r.Bank_name as bankname,
+		r.Bank_open as bankopen,
+		r.Bank_cardid as bankcardid,
+		r.Fee as fee,
+		r.state as state,
+		s.statename as statename,
+		s.loadurl as loadurl,
+		r.Add_date as adddate,
+		r.state as state,
+		r.Bz as bz,
+		u.Wx_id as wxid,
+		r.bank_back_id as bankbackid
+		from tower_user_tx_record r
+		left join tower_user_info u on  r.userid = u.id
+		left join tower_user_type t on u.User_type = t.ID
+		left join tower_city c on c.City_id=u.User_city
+		left join Tower_district d on d.Dis_id=u.User_district
+		left join tower_user_charge f on r.userid = f.user_id
+		left join Tower_user_tx_state s on s.txstate=r.state
+		left join tower_user_level l on l.province=u.user_province and l.userlevel=u.User_level
+		where 1=1
+		
+		and r.ID =#{txid};
+	</select>
+
+	<select id="getTxSources" parameterType="com.tower.money.bean.TxPage"
+		resultType="com.tower.money.bean.TxSource">
+		select
+	    o.id as orderidid,
+		o.Order_id as orderid,
+		t.Tower_id as towerid,
+		t.Tower_name as towername,
+		a.area_name as areaname,
+		d.Dis_name as districtname,
+		c.City_name as cityname,
+		s.Fee as fee,
+		(case s.Fee_type when 0 then '预付款' when 1 then '尾款' end ) as feetypename,
+		s.Pay_time as paytime,
+		( select count(1)
+		  from tower_user_tx_source ts
+		  left join tower_order_detail td on ts.Order_id=td.id
+		  left join tower_tower_info ti on ti.id=td.Tower_id
+		  left join tower_area ta on ta.ID=ti.Tower_area
+		  left join Tower_district tdi on tdi.Dis_id=ti.Tower_district
+		  left join Tower_city tc on tc.City_id=ti.Tower_city
+		   where 1=1
+		    <include refid="admin_power_tower"/>
+		   and  ts.Tx_id= #{txid}
+		) as isarea 	   
+		from tower_user_tx_source s
+		left join tower_user_info u on s.user_id=u.id
+		left join tower_order_detail o on o.ID=s.Order_id
+		left join tower_tower_info t  on t.id=o.Tower_id
+		left join tower_area a on a.ID=t.Tower_area
+		left join Tower_district d  on d.Dis_id=t.Tower_district
+		left join Tower_city c on c.City_id=t.Tower_city
+		  <include refid="admin_power"/>
+		and s.Tx_id = #{txid}
+		and o.id>0
+	</select>
+	
+	
+	
+	<select id="gettxStates" parameterType="map" resultType="com.tower.money.bean.TxState">
+	 select 
+	  s.txstate as txstate,
+	  s.statename as statename
+	  from tower_user_tx_state s
+	  where 1=1
+	  and show=1
+	  and province=#{province}
+	  and apply=#{apply}
+	  order by sort
+	  
+	</select>
+	
+	
+	
+	<select id="getTxDoinfos" parameterType="int"
+		resultType="com.tower.money.bean.TxDoinfo">
+		select
+		d.Do_user_name as dousername,
+		d.Do_user_tele as dousertele,
+		(case User_type when 0 then '用户' when 1 then '管理员' end ) as usertypename,
+		s.statename  nowstatename,
+		d.Do_date as dodate,
+		d.Sh_info as shinfo
+		from tower_user_tx_doinfo d
+		left join Tower_user_tx_state s on s.txstate=d.Now_state and s.province=
+		where Tx_id = #{txid}
+		order by Do_date desc ;
+	</select>
+	
+	
+	<insert id="addTxdoinfo" parameterType="com.tower.money.bean.TxDoinfo">
+		insert into
+		tower_user_tx_doinfo
+		(Tx_id,Do_user_id,Do_user_name,Do_user_tele,User_type,Now_state,Do_date,Sh_info,Bz)
+		values
+		(#{txid},#{douserid},#{dousername},#{dousertele},#{usertype},#{nowstate},GETDATE(),#{shinfo},#{bz});
+	</insert>
+	
+	<update id="updateRecordState" parameterType="com.tower.money.bean.TxRecord">
+		update tower_user_tx_record
+		set state = #{state}
+		where id = #{id};
+	</update>
+	
+	<update id="updateDkRecordState" parameterType="com.tower.money.bean.TxRecord">
+		update tower_user_tx_record
+		set state = #{state},
+		bank_back_id= #{bankbackid} ,
+		Complete_date=GETDATE()
+		where id = #{id};
+	</update>
+	
+
+	<update id="shnotxsource" parameterType="map">
+		update
+		tower_user_tx_source
+		set Tx_id = ''
+		where Tx_id = (select ID from tower_user_tx_record where id = #{txid});
+	</update>
+	
+	<select id="getTxRecord" parameterType="String"
+		resultType="com.tower.money.bean.TxRecord">
+		select
+		a.Bank_cardid as bankcardid,
+		a.Fee as fee,
+		a.Wx_id as wxid
+		from tower_user_tx_record a
+		<!-- 
+		left join tower_user_bank e on
+		e.id=a.Card_id
+		 -->
+		where 1=1
+		and a.Tx_id =#{txid};
+	</select>
+	
+	
+	
+	<select id="getTxRecordById" parameterType="int"
+		resultType="com.tower.money.bean.TxRecord">
+		select
+		a.tx_id as txid,
+		a.Bank_cardid as bankcardid,
+		a.Fee as fee,
+		a.Wx_id as wxid
+		from tower_user_tx_record a
+		<!-- 
+		left join tower_user_bank e on
+		e.id=a.Card_id
+		 -->
+		where 1=1
+		and a.id =#{id};
+	</select>
+	
+	<select id="getAutoTxs" resultType="com.tower.money.bean.TxRecord">
+	
+	   select 
+	  a.id as id,
+	  a.tx_id as txid,
+	  u.User_name as username,
+	  u.User_tele as usertele
+	  from tower_user_tx_record a
+	  left join tower_user_info u on u.Wx_id=a.Wx_id
+	  where 1=1
+	  and state=3
+	  and DATEADD(DAY,1,Complete_date) <![CDATA[<= ]]> GETDATE()
+	  ;
+	  
+	</select>
+	
+	<update id="updateAutoTx" parameterType="int">
+	  update tower_user_tx_record
+	  set state=6
+	  where id =#{id}
+	</update>
+
+
+	<insert id="insertTxSource" parameterType="com.tower.money.bean.TxSource">
+		insert into
+		tower_user_tx_source
+		(Order_id,User_id,Fee,Fee_type,Pay_time)
+		values
+		(#{orderid},#{userid},#{fee},#{feetype},GETDATE())
+		;
+	</insert>
+	
+	
+
+
+</mapper>

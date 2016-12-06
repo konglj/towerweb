@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tower.common.mapper.DictMapper">
+	<select id="getDict" parameterType="com.tower.common.bean.Dict"
+		resultMap="dicMap">
+		select
+		d.id as id,
+		d.dictname as dictname,
+		d.province as province,
+		d.state as state
+		from tower_dict d
+		where 1=1
+		and d.state=1
+		and d.province=#{province}
+		and dictname=#{dictname}
+		;
+	</select>
+
+	<resultMap type="com.tower.common.bean.Dict" id="dicMap">
+		<id property="id" column="id" />
+		<collection property="dicMaps" column="id" select="getDictInfo"></collection>
+	</resultMap>
+
+	<select id="getDictInfo" parameterType="int" resultType="map">
+		select
+		i.dictinfo as dictinfo,
+		i.dictvalue as dictvalue
+		from tower_dict_info i
+		where dictid=#{id}
+		;
+	</select>
+</mapper>

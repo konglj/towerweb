@@ -1,0 +1,400 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tower.analysis.mapper.TowerAnalysisMapper">
+
+	<sql id="admin_power">
+		<if test="sysUser.province!=null and  sysUser.province!=0">
+			and t.Tower_province =#{sysUser.province}
+		</if>
+		<if test="sysUser.citys!=null">
+			and t.Tower_city in(
+			<foreach collection="sysUser.citys" item="c" separator=",">
+				#{c.cityid}
+			</foreach>
+			)
+		</if>
+
+		<if test="sysUser.districts!=null">
+			and t.Tower_district in(
+			<foreach collection="sysUser.districts" item="dis" separator=",">
+				#{dis.disid}
+			</foreach>
+			)
+		</if>
+		<if test="sysUser.areas!=null">
+			and t.Tower_area in(
+			<foreach collection="sysUser.areas" item="a" separator=",">
+				#{a.id}
+			</foreach>
+			)
+		</if>
+	</sql>
+	
+	<sql id="admin_power_state">
+		<if test="sysUser.province!=null and  sysUser.province!=0">
+			and p.province_id =#{sysUser.province}
+		</if>
+		<if test="sysUser.citys!=null">
+			and c.City_id in(
+			<foreach collection="sysUser.citys" item="c" separator=",">
+				#{c.cityid}
+			</foreach>
+			)
+		</if>
+
+		<if test="sysUser.districts!=null">
+			and d.Dis_id in(
+			<foreach collection="sysUser.districts" item="dis" separator=",">
+				#{dis.disid}
+			</foreach>
+			)
+		</if>
+	</sql>
+
+	<sql id="tower_paramers">
+
+		<if test="towername != null and towername != ''">
+			and (t.Tower_name like '%${towername}%' or t.Tower_id like
+			'%${towername}%')
+		</if>
+
+		<if test="towercity != null and towercity != 0">
+			and t.tower_city = #{towercity}
+		</if>
+		<if test="towerdistrict != null and towerdistrict != 0">
+			and t.Tower_district = #{towerdistrict}
+		</if>
+		<if test="towerarea != null and towerarea !=0">
+			and t.Tower_area = #{towerarea}
+		</if>
+
+		<if test="towerlevel!=null and towerlevel!=0">
+			and t.Tower_level=#{towerlevel}
+		</if>
+	</sql>
+
+	<sql id="sql_from_tower">
+		from tower_tower_info t
+		left join Tower_city c on
+		c.City_id=t.Tower_city
+		left join Tower_district d on
+		d.Dis_id=t.Tower_district
+		LEFT JOIN tower_area a on t.Tower_area = a.ID
+		left join data_report_tower drt on t.ID = drt.Tower_id
+		left join
+		tower_tower_level l on l.towerlevel=t.Tower_level and
+		t.Tower_province=l.province
+		left join tower_tower_visible v on
+		v.visible=t.Tower_visible and t.Tower_province=v.province
+		where 1=1
+	</sql>
+
+
+	<select id="getTowers" parameterType="com.tower.analysis.bean.TowerAnalysisPage"
+		resultType="com.tower.analysis.bean.TowerAnalysis">
+		select * from (select *,ROW_NUMBER() OVER (ORDER BY Tower_add_date
+		desc) as rank from
+		(
+		SELECT
+		t.Tower_name as towername,
+		c.City_name as
+		towercityname,
+		d.Dis_name as
+		towerdistrictname,
+		a.Area_name as
+		towerareaname,
+		l.levelname as
+		towerlevel,
+		t.Tower_fee as towerfee,
+		drt.Cancel_count as cancelcount,
+		drt.Reject_count as rejectcount,
+		drt.Sale_count+drt.pd_count as
+		selecount,
+		drt.View_count as viewcount,
+		drt.Time_count as timecount,
+		t.Tower_add_date,
+		t.Tower_rent_fee as
+		towerrentfee,
+		t.Tower_id as
+		towerid,
+		case
+		t.Tower_state
+		when 0 then '未抢单'
+		else (select
+		top(1)s.statename from tower_order_detail o
+		left join
+		tower_order_state
+		s on s.state=o.Tower_state where
+		o.Tower_id=t.id order
+		by
+		o.Tower_add_time desc )
+		end as statename,
+		v.name as towervisible
+		<include refid="sql_from_tower" />
+		<include refid="admin_power" />
+		<include refid="tower_paramers" />
+		) w1)as tm where tm.rank between
+		#{iDisplayStart}+1 and
+		#{iDisplayStart}+#{iDisplayLength}
+		;
+	</select>
+
+	<select id="getTowersCount" parameterType="com.tower.analysis.bean.TowerAnalysisPage"
+		resultType="int">
+		SELECT
+		count(1)
+		from tower_tower_info t
+		where 1=1
+		<!-- <include refid="sql_from_tower"/> -->
+		<include refid="admin_power" />
+		<include refid="tower_paramers" />
+		;
+	</select>
+
+	<select id="getTowerStates" parameterType="com.tower.analysis.bean.TowerAnalysisPage"
+		resultType="map">
+
+		<if test="sysUser.arealevel==2">
+			select A.cityname,A.ID
+			,towervisisblecount,towerqdcount,towerunqdcount,towerpdingcount,towerpdcount,
+
+			ordertargetaddresscount,orderjdcount,ordershingcount,ordercompletecount,txsuccesscount
+			from
+			(select
+			c.ID,
+			c.City_name as cityname,
+
+			(select COUNT(1)
+			from
+			tower_tower_info i1
+			left join tower_city c1 on
+			c1.City_id=i1.Tower_city
+			where c1.City_id=c.City_id and
+			i1.tower_visible=1) as towervisisblecount,
+
+			(select COUNT(1)
+			from
+			tower_tower_info i1
+			left join tower_city c1 on
+			c1.City_id=i1.Tower_city
+			where c1.City_id=c.City_id and
+			i1.Tower_state=1) as towerqdcount,
+
+			(select COUNT(1)
+			from
+			tower_tower_info i1
+			left join tower_city c1 on
+			c1.City_id=i1.Tower_city
+			where c1.City_id=c.City_id and
+			i1.Tower_state=0 and i1.Tower_visible=1) as
+			towerunqdcount,
+
+			(select
+			COUNT(1)
+			from tower_tower_info i1
+			left join tower_city c1 on
+			c1.City_id=i1.Tower_city
+			where c1.City_id=c.City_id and
+			i1.Tower_state=2 and i1.Tower_visible=1) as
+			towerpdingcount,
+
+
+			(select
+			COUNT(1)
+			from tower_tower_info i1
+			left join tower_city c1 on
+			c1.City_id=i1.Tower_city
+			where c1.City_id=c.City_id and
+			i1.Tower_state=3 and i1.Tower_visible=1) as
+			towerpdcount
+			from
+			tower_city c
+			left join Tower_district d on d.City_id=c.City_id 
+			left join tower_province p on p.Province_id=c.Province_id
+			left join tower_tower_info t on t.Tower_city=c.City_id
+			where 1=1
+			<include refid="admin_power_state" />
+			group by c.City_name,c.ID,c.City_id
+
+			)A
+
+			FULL JOIN
+
+			(
+			select
+			c.ID,
+			c.City_name as cityname,
+
+			(select COUNT(1)
+			from tower_order_detail d1
+			left join tower_tower_info i1 on d1.Tower_id=i1.ID
+			left join
+			tower_city c1 on c1.City_id=i1.Tower_city
+			where c1.ID=c.ID and
+			d1.Tower_state=19) as ordertargetaddresscount,
+
+			(select COUNT(1)
+			from
+			tower_order_detail d1
+			left join tower_tower_info i1 on
+			d1.Tower_id=i1.ID
+			left join tower_city c1 on c1.City_id=i1.Tower_city
+			where c1.ID=c.ID and d1.Tower_state=2) as orderjdcount,
+
+
+			(select
+			COUNT(1)
+			from tower_order_detail d1
+			left join tower_tower_info i1 on
+			d1.Tower_id=i1.ID
+			left join tower_city c1 on c1.City_id=i1.Tower_city
+			where c1.ID=c.ID and d1.Tower_state in(5,7,22,8)) as ordershingcount,
+
+
+			(select COUNT(1)
+			from tower_order_detail d1
+			left join tower_tower_info
+			i1 on d1.Tower_id=i1.ID
+			left join tower_city c1 on
+			c1.City_id=i1.Tower_city
+			where c1.ID=c.ID and d1.Tower_state =9) as
+			ordercompletecount,
+
+
+
+			(select COUNT(1)
+			from tower_user_tx_source s4
+			left
+			join tower_user_tx_record r4 on s4.Tx_id=r4.id
+			left join
+			tower_order_detail o4 on o4.ID=s4.Order_id
+			left join tower_tower_info
+			i4 on i4.ID=o4.Tower_id
+
+			left join tower_city c4 on
+			c4.City_id=i4.Tower_city
+			where r4.state in (3,5) and
+			c4.City_id=c.City_id) as txsuccesscount
+
+			from tower_city c
+			left join Tower_district d on d.City_id=c.City_id 
+			left join tower_province p on p.Province_id=c.Province_id
+			left join
+			tower_tower_info t on t.Tower_city=c.City_id
+			where 1=1
+			<include refid="admin_power_state" />
+			group by c.City_name,c.ID,c.City_id
+			)B
+			on A.ID=B.ID
+		</if>
+
+		<if test="sysUser.arealevel==3">
+			select A.cityname,A.Dis_id
+			,towervisisblecount,towerqdcount,towerunqdcount,towerpdingcount,towerpdcount,
+
+			ordertargetaddresscount,orderjdcount,ordershingcount,ordercompletecount,txsuccesscount
+			from
+			(select
+			d.Dis_id,
+			d.Dis_name as cityname,
+
+			(select COUNT(1)
+			from tower_tower_info i1
+			left join Tower_district c1 on c1.Dis_id=i1.Tower_district
+			where c1.Dis_id=d.Dis_id and i1.tower_visible=1) as towervisisblecount,
+
+			(select COUNT(1)
+			from tower_tower_info i1
+			left join Tower_district c1 on c1.Dis_id=i1.Tower_district
+			where c1.Dis_id=d.Dis_id and i1.Tower_state=1) as towerqdcount,
+
+			(select COUNT(1)
+			from tower_tower_info i1
+			left join Tower_district c1 on c1.Dis_id=i1.Tower_district
+			where c1.Dis_id=d.Dis_id and i1.Tower_state=0 and i1.Tower_visible=1) as
+			towerunqdcount,
+
+			(select COUNT(1)
+			from tower_tower_info i1
+			left join Tower_district c1 on c1.Dis_id=i1.Tower_district
+			where c1.Dis_id=d.Dis_id and i1.Tower_state=2 and i1.Tower_visible=1) as
+			towerpdingcount,
+
+
+			(select COUNT(1)
+			from tower_tower_info i1
+			left join Tower_district c1 on c1.Dis_id=i1.Tower_district
+			where c1.Dis_id=d.Dis_id and i1.Tower_state=3 and i1.Tower_visible=1) as
+			towerpdcount
+			from Tower_district d
+			left join  tower_city c on c.City_id=d.city_id
+			left join tower_province p on p.Province_id=c.Province_id
+			left join tower_tower_info t on t.Tower_district=d.Dis_id
+			where 1=1
+			
+		<include refid="admin_power_state"/>
+			group by d.Dis_id,d.Dis_name
+
+			)A
+
+			FULL JOIN
+
+			(
+			select
+			d.Dis_id,
+			d.Dis_name as cityname,
+
+			(select COUNT(1)
+			from tower_order_detail d1
+			left join tower_tower_info i1 on d1.Tower_id=i1.ID
+			left join Tower_district c1 on c1.Dis_id=i1.Tower_district
+			where c1.Dis_id=d.Dis_id and d1.Tower_state=19) as
+			ordertargetaddresscount,
+
+			(select COUNT(1)
+			from tower_order_detail d1
+			left join tower_tower_info i1 on d1.Tower_id=i1.ID
+			left join Tower_district c1 on c1.Dis_id=i1.Tower_district
+			where c1.Dis_id=d.Dis_id and d1.Tower_state=2) as orderjdcount,
+
+
+			(select COUNT(1)
+			from tower_order_detail d1
+			left join tower_tower_info i1 on d1.Tower_id=i1.ID
+			left join Tower_district c1 on c1.Dis_id=i1.Tower_district
+			where c1.Dis_id=d.Dis_id and d1.Tower_state in(5,7,22,8)) as
+			ordershingcount,
+
+
+			(select COUNT(1)
+			from tower_order_detail d1
+			left join tower_tower_info i1 on d1.Tower_id=i1.ID
+			left join Tower_district c1 on c1.Dis_id=i1.Tower_district
+			where c1.Dis_id=d.Dis_id and d1.Tower_state =9) as ordercompletecount,
+
+
+
+			(select COUNT(1)
+			from tower_user_tx_source s4
+			left join tower_user_tx_record r4 on s4.Tx_id=r4.id
+			left join tower_order_detail o4 on o4.ID=s4.Order_id
+			left join tower_tower_info i4 on i4.ID=o4.Tower_id
+
+			left join Tower_district c4 on c4.Dis_id=i4.Tower_district
+			where r4.state in (3,5) and c4.Dis_id=d.Dis_id) as txsuccesscount
+
+			from Tower_district d
+			left join  tower_city c on c.City_id=d.city_id
+			left join tower_province p on p.Province_id=c.Province_id
+			left join tower_tower_info t on t.Tower_district=d.Dis_id
+			where 1=1
+			<include refid="admin_power_state"/>
+			group by d.Dis_name,d.Dis_id
+			)B
+			on A.Dis_id=B.Dis_id
+			
+
+		</if>
+
+	</select>
+</mapper>

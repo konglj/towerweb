@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tower.order.mapper.OrderMapper31">
+
+
+	<!-- 延期处理 -->
+	<update id="updateOrderByDelay" parameterType="map">
+		update tower_order_detail
+		set
+		<if test="towerstate!=null and towerstate==12 ">
+			Tower_end_date=DATEADD(SECOND,DATEDIFF(SECOND,Tower_apply_time,GETDATE())+#{yqcount}*24*60*60,Tower_end_date),
+			Tower_apply_time=NULL,
+		</if>
+		<if test="towerstate!=null and (towerstate==14 or towerstate==19) ">
+			Tower_end_date=DATEADD(SECOND,DATEDIFF(SECOND,Tower_apply_time,GETDATE()),Tower_end_date),
+			Tower_apply_time=NULL,
+		</if>
+		Tower_state=#{towerstate}
+		where ID=#{orderid}
+		;
+	</update>
+
+	<!-- 租赁合同提交 -->
+	<update id="updateOrderByRentHt" parameterType="com.tower.order.bean.OrderInfo">
+		update
+		tower_order_detail
+		set
+		Tower_ht_id=#{towerhtid},
+		Tower_ht_imag=#{towerhtimag},
+		Tower_fact_rent_fee=#{towerfactrentfee},
+		Tower_power_type=#{towerpowert},
+		Tower_power_price=#{towerpowerprice},
+		Tower_power_t=#{towerpowert},
+		Tower_state=#{towerstate},
+		Tower_fact_address=#{towerfactaddress},
+		Tower_yz_name =#{toweryzname},
+		Tower_yz_phone=#{toweryzphone},
+		Tower_fact_gps=#{towerfactgps}
+		where
+		ID=#{id}
+		;
+	</update>
+
+	<!-- 三方合同提交 -->
+	<update id="updateOrderByThreeHt" parameterType="com.tower.order.bean.OrderInfo">
+		update
+		tower_order_detail
+		set
+		Tower_fact_fee=#{towerfactfee},
+		Tower_three_ht=#{towerthreeht},
+		Tower_state=#{towerstate}
+		where ID=#{id}
+		;
+	</update>
+
+	<update id="updateOrderByFeeApply" parameterType="com.tower.order.bean.OrderInfo">
+		update
+		tower_order_detail
+		set
+		Tower_file=#{towerfile},
+		Tower_project_no=#{towerprojectno},
+		Tower_project_name=#{towerprojectname},
+		Tower_state=#{towerstate}
+		where ID=#{id}
+	</update>
+
+</mapper>

@@ -1,0 +1,474 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tower.user.mapper.UserMapper">
+
+	<sql id="admin_power">
+		<if test="sysUser.citys!=null">
+			and u.User_city in(
+			<foreach collection="sysUser.citys" item="c" separator=",">
+				#{c.cityid}
+			</foreach>
+			)
+		</if>
+
+		<if test="sysUser.districts!=null">
+			and u.User_district in(
+			<foreach collection="sysUser.districts" item="dis" separator=",">
+				#{dis.disid}
+			</foreach>
+			)
+		</if>
+	</sql>
+
+	<sql id="sql_parameter">
+		<if test="parameter.usertele!=null and parameter.usertele!='' ">
+			and u.User_tele=#{parameter.usertele}
+		</if>
+		<if test="parameter.username!=null and parameter.username!='' ">
+			and (u.User_name like '%${parameter.username}%' or u.User_tele like '%${parameter.username}%' )
+		</if>
+		<if test="parameter.usercity!=null and parameter.usercity!=0 ">
+			and u.User_city=#{parameter.usercity}
+		</if>
+		<if test="parameter.userdistrict!=null and parameter.userdistrict!=0 ">
+			and u.User_district=#{parameter.userdistrict}
+		</if>
+		<if test="parameter.userlevel!=null and parameter.userlevel!=0 ">
+			and u.user_level=#{parameter.userlevel}
+		</if>
+		<if test="parameter.userstate!=null and parameter.userstate!=-1 ">
+			and u.User_state=#{parameter.userstate}
+		</if>
+		<if test="parameter.usertype!=null and parameter.usertype!=0 ">
+			and u.User_type=#{parameter.usertype}
+		</if>
+		<if test="parameter.usertype!=null and parameter.usertype!=0 ">
+			and u.User_type=#{parameter.usertype}
+		</if>
+		<if
+			test="parameter.fromdate!=null and parameter.fromdate!=''">
+			and u.Add_time >=#{parameter.fromdate}
+		</if>
+		<if test="parameter.todate!=null and parameter.todate!=''">
+			and u.Add_time <![CDATA[ <= ]]>
+			#{parameter.todate}
+		</if>
+		<if test="parameter.userbz!=null and parameter.userbz!=''">
+			and u.User_bz like '%${parameter.userbz}%'
+		</if>
+		<if
+			test="parameter.userverifystate!=null and parameter.userverifystate!=-1">
+			and u.User_verify_state=#{parameter.userverifystate}
+		</if>
+			<if test="parameter.userteamimage==0">
+				and (u.User_team_img is NULL or a.User_team_img='')
+			</if>
+			<if test="parameter.userteamimage==1">
+				and (u.User_team_img is not NULL and a.User_team_img
+				!='')
+			</if>
+
+		
+	</sql>
+
+	<sql id="sql_user_from">
+		from tower_user_info u
+		left join Tower_user_level l on
+		l.userlevel=u.User_level and l.province=u.User_province
+		LEFT JOIN tower_user_type t on u.User_type
+		=t.ID
+		LEFT join tower_user_business e on e.businessid=u.User_business
+		left join Tower_city c on c.City_id=u.User_city
+		left join
+		Tower_district d on d.Dis_id=u.User_district
+
+	</sql>
+
+
+	<sql id="sql_money_from">
+		from tower_user_info u
+		LEFT JOIN tower_city c on c.City_id=u.User_city
+		left JOIN Tower_district d
+		on d.Dis_id=u.User_district
+		LEFT JOIN tower_user_type t on u.User_type
+		= t.ID
+		LEFT JOIN tower_user_charge e on u.Wx_id = e.Wx_id
+		left join
+		Tower_user_level l on l.userlevel=u.User_level and l.province=u.User_province
+
+	</sql>
+
+	<select id="getUserInfos" parameterType="com.tower.user.bean.UserManagePage"
+		resultType="com.tower.user.bean.UserInfo">
+		select * from (select *,ROW_NUMBER() OVER (ORDER BY addtime desc) as
+		rank from(
+		select u.ID as id,
+		u.Wx_id as wxid,
+		u.User_tele as usertele,
+		u.User_name as username,
+		(case when len(u.User_company)>20 then left
+		(u.User_company,20)+'...'
+		else u.User_company
+		end ) as usercompany,
+		l.levelname as levelname,
+		u.User_type as usertype,
+		t.Type_name as typename,
+		u.User_state as userstate,
+		(case u.User_state when 0 then '冻结'
+		when 1
+		then '正常' end ) as statename,
+		(case u.User_verify_state when 0
+		then
+		'未验证' when 1 then '已验证' end ) as verifystatename,
+		(case
+		u.User_team_type when 1 then '个人' when 2 then '企业' end ) as
+		teamtypename,
+		CONVERT(varchar,
+		u.Add_time, 120 ) as addtime,
+		u.User_verify_state as userverifystate,
+		e.businessname as userbusinessname,
+		(case when len(u.User_win_type)>10 then left
+		(u.User_win_type,9)+'...'
+		else u.User_win_type
+		end ) as userwintype,
+		u.User_win_time as userwintime,
+		c.City_name as cityname,
+		d.Dis_name as districtname
+		<include refid="sql_user_from"></include>
+		where 1=1
+		<!-- admin -->
+		<include refid="admin_power"></include>
+		<!-- admin end -->
+		<include refid="sql_parameter"></include>
+        
+		) w1)as tm where tm.rank between #{iDisplayStart}+1 and
+		#{iDisplayStart}+#{iDisplayLength}
+		;
+	</select>
+	<select id="getUserInfosCount" parameterType="com.tower.user.bean.UserManagePage"
+		resultType="int">
+		select count(1)
+		<include refid="sql_user_from"></include>
+		where 1=1
+		<!-- admin -->
+		<include refid="admin_power"></include>
+		<!-- admin end -->
+		<include refid="sql_parameter"></include>
+		;
+	</select>
+
+	<!-- 获取用户信息 -->
+	<select id="getUserInfo" parameterType="int"
+		resultType="com.tower.user.bean.UserInfo">
+		select
+		u.Wx_name as wxname,
+		u.User_name as username,
+		u.User_tele as usertele,
+		u.User_sex as usersex,
+		u.User_old as userold,
+		u.User_business as userbusiness,
+		b.businessname as userbusinessname,
+		c.City_name as cityname,
+		d.Dis_name as districtname,
+		u.User_bz as
+		userbz,
+		u.User_company as usercompany,
+		(select User_name from
+		tower_user_info u1 where u1.ID=
+		u.User_tj_id) as usertjname,
+		m.Score as
+		score,
+		m.Experience as exp,
+		u.User_verify_state as userverifystate,
+		u.User_team_type as userteamtype,
+		u.User_team_img as userteamimg,
+		u.User_win_type as userwintype,
+		u.User_win_time as userwintime
+		from
+		tower_user_info u
+		left join tower_user_charge m on m.Wx_id=u.Wx_id
+		left
+		join tower_city c on u.User_city=c.City_id
+		left join Tower_district d
+		on d.Dis_id=u.User_district
+		left join tower_user_business b on
+		b.businessid=u.User_business
+		where 1=1
+		and u.id=#{id}
+		;
+	</select>
+	<select id="getUserMoneys" parameterType="com.tower.user.bean.UserManagePage"
+		resultType="com.tower.user.bean.UserMoney">
+		select * from (select *,ROW_NUMBER() OVER (ORDER by addtime desc) as
+		rank from(
+		select u.ID as id,
+		u.User_tele as usertele,
+		u.User_name as
+		username,
+		c.City_name as cityname,
+		d.Dis_name as districtname,
+		l.levelname as levelname,
+		t.Type_name as typename,
+		e.Charge as charge,
+		e.Get_now as getnow,
+		e.Getting_now as gettingnow,
+		e.All_geting as
+		allgeting,
+		e.Score as score,
+		e.Experience as exp,
+		CONVERT(varchar,
+		u.Add_time, 120 ) as
+		addtime,
+		u.Wx_id as userwxid,
+		u.User_win_type as
+		userwintype,
+		u.User_win_time as userwintime
+		<include refid="sql_money_from"></include>
+		where 1=1
+		<!-- admin -->
+		<include refid="admin_power"></include>
+		<!-- admin end -->
+		<include refid="sql_parameter"></include>
+		) w1)as tm where tm.rank between #{iDisplayStart}+1 and
+		#{iDisplayStart}+#{iDisplayLength}
+		;
+	</select>
+
+	<select id="getUserMoneysCount" parameterType="com.tower.user.bean.UserManagePage"
+		resultType="int">
+		select count(1)
+		<include refid="sql_money_from"></include>
+		where 1=1
+		<!-- admin -->
+		<include refid="admin_power"></include>
+		<!-- admin end -->
+		<include refid="sql_parameter"></include>
+		;
+	</select>
+
+	<select id="getUserDetail" parameterType="int"
+		resultType="com.tower.user.bean.UserInfo">
+		SELECT u.Wx_id as wxid,
+		u.Wx_name as wxname,
+		(case u.User_sex
+		when 1 then '男' when 2 then '女' end ) as sexname,
+		u.Add_time as
+		addtime,
+		u.User_name as username,
+		c.City_name as cityname,
+		d.Dis_name as districtname,
+		u.User_tele as
+		usertele,
+		u.User_company as usercompany,
+		u.User_bz as userbz,
+		l.levelname as levelname,
+		u.User_type as usertype,
+		t.Type_name as typename,
+		u.User_state as
+		userstate,
+		(case u.User_state
+		when 0 then '冻结' when 1 then '正常' end ) as
+		statename,
+		(case
+		u.User_verify_state when 0 then '未验证' when 1 then '已验证'
+		end ) as
+		verifystatename,
+		(case u.User_team_type when 1 then '个人' when 2
+		then
+		'企业' end ) as teamtypename,
+		u.User_team_img as userteamimg,
+		e.Order_count as ordercount,
+		e.Succ_count as succcount,
+		e.Ing_count as
+		ingcount,
+		e.Fail_count as failcount,
+		e.Cancel_count as cancelcount,
+		m.Score as score,
+		m.Experience as exp,
+		u.User_verify_state as
+		userverifystate,
+		u.User_team_type as userteamtype,
+		u.User_team_img as
+		userteamimg,
+		s.businessname as userbusinessname,
+		u.User_win_type as
+		userwintype,
+		u.User_win_time as userwintime
+		from tower_user_info u
+		LEFT
+		JOIN tower_city c on c.City_id = u.User_city
+		left join Tower_district d
+		on d.Dis_id=u.User_district
+		LEFT JOIN tower_user_type t on u.User_type
+		= t.ID
+		LEFT JOIN tower_user_order_info e on u.id = e.User_id
+		LEFT JOIN
+		tower_user_charge m on m.Wx_id=u.Wx_id
+		LEFT join tower_user_business s
+		on s.businessid=u.User_business
+		left join Tower_user_level l on
+		l.userlevel=u.User_level and l.province=u.User_province
+		where u.id=#{id};
+	</select>
+
+
+	<update id="updateuserstate" parameterType="map">
+		update
+		tower_user_info
+		set
+		<if test="state!=null">
+			User_state = #{state}
+		</if>
+		<if test="verifystate!=null">
+			User_verify_state = #{verifystate}
+		</if>
+		where id = #{userid};
+	</update>
+
+	<update id="updateusertype" parameterType="map">
+		update tower_user_info
+		set User_type = #{usertype}
+		where id = #{userid};
+	</update>
+
+	<update id="updateUserBz" parameterType="map">
+		update tower_user_info
+		set User_bz = #{userbz}
+		where id = #{userid};
+	</update>
+
+
+
+	<select id="getDcUserImage" parameterType="com.tower.user.bean.UserManagePage"
+		resultType="com.tower.user.bean.UserInfo">
+
+
+		select
+		a.User_tele as usertele,
+		a.User_name as username,
+		a.User_company
+		as usercompany,
+		a.User_team_img as userteamimage
+		from tower_user_info a
+		LEFT JOIN
+		tower_city c on c.ID = a.User_area
+		LEFT JOIN tower_user_type d
+		on
+		a.User_type = d.ID
+		left join tower_user_business s on
+		s.businessid=a.User_business
+		where 1=1
+		<!-- admin -->
+		<if test="adminCitys!=null">
+			and c.ID in(
+			<foreach collection="adminCitys" item="city" separator=",">
+				#{city.id}
+			</foreach>
+			)
+		</if>
+		<!-- admin end -->
+		<if test="parameter.usertele!=null and parameter.usertele!='' ">
+			and a.User_tele=#{parameter.usertele}
+		</if>
+		<if test="parameter.username!=null and parameter.username!='' ">
+			and a.User_name=#{parameter.username}
+		</if>
+		<if test="parameter.usercity!=null and parameter.usercity!=0 ">
+			and a.User_area=#{parameter.usercity}
+		</if>
+		<if test="parameter.userlevel!=null and parameter.userlevel!=-1 ">
+			and a.user_level=#{parameter.userlevel}
+		</if>
+		<if test="parameter.userstate!=null and parameter.userstate!=-1 ">
+			and a.User_state=#{parameter.userstate}
+		</if>
+		<if test="parameter.usertype!=null and parameter.usertype!=-1 ">
+			and a.User_type=#{parameter.usertype}
+		</if>
+		<if
+			test="parameter.useraddtimestart!=null and parameter.useraddtimestart!=''">
+			and a.Add_time >=#{parameter.useraddtimestart}
+		</if>
+		<if test="parameter.useraddtimeend!=null and parameter.useraddtimeend!=''">
+			and a.Add_time <![CDATA[ <= ]]>
+			#{parameter.useraddtimeend}
+		</if>
+		<if test="parameter.userbz!=null and parameter.userbz!=''">
+			and a.User_bz like '%${parameter.userbz}%'
+		</if>
+		<if
+			test="parameter.userverifystate!=null and parameter.userverifystate!=-1">
+			and a.User_verify_state=#{parameter.userverifystate}
+		</if>
+		order by a.Add_time desc
+		;
+
+	</select>
+	<update id="updateUserLevel" parameterType="map">
+		update
+		tower_user_info
+		set User_level=#{userlevel}
+		where id=#{userid}
+		;
+	</update>
+	<select id="getUserTypes" resultType="com.tower.user.bean.UserType">
+		select ID as id,
+		Type_name
+		as typename
+		from tower_user_type
+	</select>
+
+	<select id="getUserLevels" parameterType="int" resultType="com.tower.user.bean.UserLevel">
+		select
+		l.levelname as levelname,
+		l.userlevel as userlevel,
+		l.minscore as minscore,
+		l.maxscore as maxscore,
+		l.minexp as minexp,
+		l.maxexp as maxexp
+		from Tower_user_level l
+		where province=#{province}
+	</select>
+	
+	<select id="getUpdateUserInfo" parameterType="int" resultType="com.tower.user.bean.UserInfo">
+	  select 
+	  User_bz as userbz,
+	  User_type as usertype
+	  from tower_user_info
+	  where id=#{userid}
+	  ;
+	</select>
+	
+	<update id="updateUserMoney" parameterType="com.tower.user.bean.UserMoney">
+	  update tower_user_charge
+	  set 
+	  Score=Score+#{score},
+	  Charge=Charge+#{charge},
+	  Get_now=Get_now+#{getnow},
+	  Getting_now=Getting_now+#{gettingnow},
+	  All_geting =All_geting+#{allgeting},
+	  Experience = Experience+#{exp}
+	  where User_id=#{userid};
+	</update>
+
+	<select id="getUserMoney" parameterType="int" resultType="com.tower.user.bean.UserMoney">
+	  select 
+	  c.Score  as score,
+	  c.Charge  as charge,
+	  c.Get_now as getnow,
+	  c.Getting_now as gettingnow,
+	  c.All_geting as allgeting,
+	  c.Experience as exp
+	  from tower_user_charge c
+	  where c.User_id=#{userid}
+	  ;
+	</select>
+	
+	<select id="getUserLevel" parameterType="int" resultType="Integer">
+	  select 
+	  u.User_level as userlevel
+	  from tower_user_info u
+	  where u.id=#{userid};
+	</select>
+
+</mapper>

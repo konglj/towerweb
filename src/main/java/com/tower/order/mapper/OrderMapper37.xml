@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tower.order.mapper.OrderMapper37">
+
+
+
+	<!-- 租赁付首款申请 -->
+	<update id="upateOrderByFirstFeeApply" parameterType="com.tower.order.bean.OrderInfo">
+		update
+		tower_order_detail
+		set
+		Tower_ht_id=#{towerhtid},
+	    Tower_ht_imag=#{towerhtimag},
+	    Tower_first_fee=#{towerfirstfee},
+	    Tower_end_fee=#{towerendfee},
+	    Tower_state=#{towerstate}
+		where
+		ID=#{id}
+		;
+	</update>
+	
+	<!-- 租赁付尾款款申请 -->
+	<update id="upateOrderByEndFeeApply" parameterType="com.tower.order.bean.OrderInfo">
+		update
+		tower_order_detail
+		set
+		Tower_file=#{towerfile},
+	    Tower_state=#{towerstate}
+		where
+		ID=#{id}
+		;
+	</update>
+
+
+</mapper>

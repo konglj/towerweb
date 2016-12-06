@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tower.common.mapper.AreaMapper">
+
+
+	<sql id="admin_area">
+	 <if test="sysUser!=null and sysUser.areas!=null">
+	   and a.ID in(
+	  <foreach collection="sysUser.areas" item="sysarea" separator=",">
+	    #{sysarea.id}
+	  </foreach>
+	  )
+	 </if>
+	</sql>
+	
+	<sql id="admin_district">
+	 <if test="sysUser!=null and sysUser.districts!=null">
+	   and d.Dis_id in(
+	  <foreach collection="sysUser.districts" item="sysdis" separator=",">
+	    #{sysdis.disid}
+	  </foreach>
+	  )
+	 </if>
+	</sql>
+
+	<select id="getProvices" parameterType="map"
+		resultType="com.tower.common.bean.Province">
+		select
+		p.id as id,
+		p.Province_name as provicename,
+		p.Province_id
+		provinceid
+		from
+		tower_province p
+		where 1=1
+		<if test="provices!=null">
+			and p.Province_id in
+			(
+			<foreach collection="provinces" item="p" separator=",">
+				#{p}
+			</foreach>
+			)
+		</if>
+		<if test="provice!=null and province!=0">
+			and p.Province_id =#{province}
+		</if>
+	</select>
+
+	<select id="getCitys" parameterType="map" resultType="com.tower.common.bean.City">
+		select
+		t.City_id as cityid,
+		t.City_name as cityname,
+		t.Province_id as
+		provinceid
+		from Tower_city t
+		where 1=1
+		<if test="citys!=null">
+			and t.City_id in
+			(
+			<foreach collection="citys" item="c" separator=",">
+				#{c}
+			</foreach>
+			)
+		</if>
+		<if test="city!=null and city!=0">
+			and t.City_id =#{city}
+		</if>
+		<if test="province!=null and province!=0">
+			and t.Province_id=#{province}
+		</if>
+		order by t.City_id asc
+	</select>
+
+
+	<select id="getDistricts" parameterType="map"
+		resultType="com.tower.common.bean.District">
+		select
+		d.Dis_id as disid,
+		d.Dis_name as disname,
+		d.City_id as cityid
+		from
+		Tower_district d
+		where 1=1
+		<include refid="admin_district"/>
+		<if test="districts!=null">
+			and d.Dis_id in
+			(
+			<foreach collection="districts" item="dis" separator=",">
+				convert(int,#{dis})
+			</foreach>
+			)
+		</if>
+		<if test="district!=null and district!=0">
+			and d.Dis_id =#{district}
+		</if>
+		<if test="city!=null and city!=0">
+			and d.City_id=#{city}
+		</if>
+		order by d.Dis_id asc
+	</select>
+
+	<select id="getAreas" parameterType="map" resultType="com.tower.common.bean.Area">
+		select
+		a.id as id,
+		a.Area_id as areaid,
+		a.Area_name as areaname,
+		a.Dis_id as disid
+		from tower_area a
+		where 1=1
+		<include refid="admin_area"/>
+		<if test="areas!=null">
+			and a.ID in
+			(
+			<foreach collection="areas" item="a" separator=",">
+				#{a}
+			</foreach>
+			)
+		</if>
+		<if test="area!=null and area!=0">
+		  and a.ID=#{area}
+		</if>
+		<if test="district!=null and district!=0">
+			and a.Dis_id=#{district}
+		</if>
+		order by a.ID asc
+		;
+	</select>
+
+
+
+</mapper>

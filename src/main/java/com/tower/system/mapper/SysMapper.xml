@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tower.system.mapper.SysMapper">
+	<select id="getSysUserInfoByPwd" parameterType="map"
+		resultType="com.tower.system.bean.SysUser">
+		select
+		a.id as id,
+		a.Admin_id as adminid,
+		a.Admin_type as admintype,
+		a.Admin_province as province,
+		a.Admin_city as city,
+		a.Admin_district as district,
+		a.Admin_area as area,
+		a.Admin_power as power,
+		a.Admin_name as name,
+		a.admin_dl_time as dltime,
+		a.admin_state as state,
+		a.Admin_type as type,
+		a.Admin_phone as phone,
+		t.name as typename,
+		t.suffix as typesuffix,
+		t.arealevel as arealevel,
+		t.userarealevel as userarealevel,
+		a.Admin_psd as password
+		from tower_admin a
+		left join tower_admin_type t on t.type=a.admin_type
+		where 1=1
+		and a.admin_is_del=0
+		and a.Admin_id=#{username}
+		and a.Admin_psd=#{password}
+	</select>
+	
+	<update id="updateUserDlTime" parameterType="int">
+	 update tower_admin
+	 set admin_dl_time=GETDATE()
+	 where id=#{id}
+	 ;
+	</update>
+	
+	<update id="updatePwd" parameterType="map">
+	  	update tower_admin
+		set Admin_psd =#{password}
+		where ID = #{userid};
+	</update>
+	
+	<update id="updateSysUserInfo" parameterType="map">
+	   update tower_admin
+		set admin_name=#{adminname},
+		admin_phone=#{adminphone}
+		where id=#{userid}
+	</update>
+</mapper>

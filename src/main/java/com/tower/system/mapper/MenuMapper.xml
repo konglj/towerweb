@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tower.system.mapper.MenuMapper">
+
+	<sql id="menu_all">
+		m.id as id,
+		m.menuname as menuname,
+		m.menuurl as menuurl,
+		m.parentid as parentid,
+		m.sort as sort,
+		m.icon as icon
+	</sql>
+
+	<select id="getMenus" parameterType="int" resultMap="getChildMenuMap">
+		select
+		<include refid="menu_all" />
+		from tower_menu m
+		where 1=1
+		and m.province=#{province}
+		and m.parentid=0
+		order by sort asc
+		;
+	</select>
+
+	<resultMap type="com.tower.system.bean.Menu" id="getChildMenuMap">
+		<id property="id" column="id" />
+		<collection property="childmenus" column="id" select="getChildMenus"></collection>
+	</resultMap>
+
+	<select id="getChildMenus" parameterType="int"
+		resultType="com.tower.system.bean.Menu">
+		select
+		<include refid="menu_all" />
+		from tower_menu m
+		where 1=1
+		and m.parentid=#{id}
+		order by sort asc
+		;
+
+	</select>
+
+
+</mapper>
